@@ -1,0 +1,13 @@
+python-dotenv
+jinja2
+pydantic
+
+langchain-core
+langchain-community
+langchain-openai
+langchain-text-splitters
+langgraph
+
+openai
+tiktoken
+pypdf
