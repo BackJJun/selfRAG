@@ -3,7 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from app.core.config import logger
 from app.prompt.crag.retrieval import CRAG_RETRIEVAL_QUALITY_PROMPT
 from app.schemas.rag import CRAGGraphState, CRAGRetrievalAssessmentResult
-from app.services.crag.dependencies import get_llm, get_retriever
+from app.services.shared.dependencies import get_llm, get_retriever
 from app.services.tracing import add_trace
 from app.utils.crag import format_chat_history, format_documents
 

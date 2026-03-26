@@ -4,7 +4,7 @@ from langgraph.graph import END, StateGraph
 
 from app.core.config import MAX_RETRIES, logger
 from app.schemas.rag import HybridGraphState
-from app.services.crag.dependencies import get_graph_lock, get_llm, get_retriever
+from app.services.shared.dependencies import get_graph_lock, get_llm, get_retriever
 from app.services.crag.node.correction import rewrite_query, web_search_node
 from app.services.crag.node.refine import refine_evidence
 from app.services.crag.node.retrieve import assess_retrieval_quality, retrieve

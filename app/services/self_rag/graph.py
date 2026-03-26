@@ -4,7 +4,7 @@ from langgraph.graph import END, StateGraph
 
 from app.core.config import logger
 from app.schemas.rag import GraphState
-from app.services.self_rag.dependencies import get_graph_lock, get_llm, get_retriever
+from app.services.shared.dependencies import get_graph_lock, get_llm, get_retriever
 from app.services.self_rag.node import (
     evaluate_retrieved_documents,
     generate_answer,

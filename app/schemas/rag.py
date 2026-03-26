@@ -9,16 +9,26 @@ class ChatTurn(TypedDict):
     content: str
 
 
-class GraphState(TypedDict):
+class BaseGraphState(TypedDict):
     question: str
     current_query: str
     chat_history: list[ChatTurn]
     documents: list
     generation: str
-    reflection_decision: str
     rewritten_query: str
     retry_count: int
     web_search_used: bool
+    retrieval_used_doc_indexes: list[int]
+    retrieval_discarded_doc_indexes: list[int]
+    retrieval_document_assessments: list[dict[str, Any]]
+    refined_evidence: list[dict[str, Any]]
+    refine_summary: str
+    refine_quality: str
+    evidence_count: int
+
+
+class GraphState(BaseGraphState):
+    reflection_decision: str
     reflection_grounded: bool
     reflection_complete: bool
     reflection_relevant: bool
@@ -26,37 +36,15 @@ class GraphState(TypedDict):
     reflection_issue_source: str
     reflection_rationale: str
     retrieval_assessment_summary: str
-    retrieval_used_doc_indexes: list[int]
-    retrieval_discarded_doc_indexes: list[int]
-    retrieval_document_assessments: list[dict[str, Any]]
-    refined_evidence: list[dict[str, Any]]
-    refine_summary: str
-    refine_quality: str
-    evidence_count: int
 
 
-class CRAGGraphState(TypedDict):
-    question: str
-    current_query: str
-    chat_history: list[ChatTurn]
-    documents: list
-    generation: str
-    rewritten_query: str
-    retry_count: int
-    web_search_used: bool
+class CRAGGraphState(BaseGraphState):
     retrieval_quality: str
     retrieval_score: int
     retrieval_issue_type: str
     retrieval_reason: str
     retrieval_should_retry: bool
     retrieval_should_use_web: bool
-    retrieval_used_doc_indexes: list[int]
-    retrieval_discarded_doc_indexes: list[int]
-    retrieval_document_assessments: list[dict[str, Any]]
-    refined_evidence: list[dict[str, Any]]
-    refine_summary: str
-    refine_quality: str
-    evidence_count: int
     answer_grounded: bool
     answer_complete: bool
     answer_relevant: bool
@@ -71,16 +59,8 @@ class CRAGGraphState(TypedDict):
     final_revision_count: int
 
 
-class HybridGraphState(TypedDict):
-    question: str
-    current_query: str
-    chat_history: list[ChatTurn]
-    documents: list
-    generation: str
+class HybridGraphState(BaseGraphState):
     reflection_decision: str
-    rewritten_query: str
-    retry_count: int
-    web_search_used: bool
     reflection_grounded: bool
     reflection_complete: bool
     reflection_relevant: bool
@@ -93,13 +73,6 @@ class HybridGraphState(TypedDict):
     retrieval_reason: str
     retrieval_should_retry: bool
     retrieval_should_use_web: bool
-    retrieval_used_doc_indexes: list[int]
-    retrieval_discarded_doc_indexes: list[int]
-    retrieval_document_assessments: list[dict[str, Any]]
-    refined_evidence: list[dict[str, Any]]
-    refine_summary: str
-    refine_quality: str
-    evidence_count: int
 
 
 class ReflectionResult(BaseModel):

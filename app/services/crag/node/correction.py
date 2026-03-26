@@ -12,7 +12,7 @@ from app.prompt.crag.correction import (
     CRAG_REVISE_ANSWER_PROMPT,
 )
 from app.schemas.rag import CRAGGraphState
-from app.services.crag.dependencies import get_llm
+from app.services.shared.dependencies import get_llm
 from app.services.tracing import add_trace
 from app.utils.crag import format_chat_history, format_documents, format_refined_evidence
 

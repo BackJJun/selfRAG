@@ -3,7 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from app.core.config import logger
 from app.prompt.crag.reflection import CRAG_ANSWER_QUALITY_PROMPT, CRAG_FINAL_ANSWER_PROMPT
 from app.schemas.rag import CRAGAnswerAssessmentResult, CRAGFinalAssessmentResult, CRAGGraphState
-from app.services.crag.dependencies import get_llm
+from app.services.shared.dependencies import get_llm
 from app.services.tracing import add_trace
 from app.utils.crag import format_chat_history, format_refined_evidence
 

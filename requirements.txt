@@ -10,5 +10,6 @@ langgraph
 langsmith
 
 openai
+httpx
 tiktoken
 pypdf

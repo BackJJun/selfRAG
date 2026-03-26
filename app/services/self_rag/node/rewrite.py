@@ -4,7 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from app.core.config import logger
 from app.prompt.common import REWRITE_QUERY_PROMPT
 from app.schemas.rag import GraphState
-from app.services.self_rag.dependencies import get_llm
+from app.services.shared.dependencies import get_llm
 from app.services.tracing import add_trace
 from app.utils.self_rag import format_chat_history
 
