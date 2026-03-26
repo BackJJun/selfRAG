@@ -3,26 +3,26 @@ import time
 from langchain_core.runnables import RunnableConfig
 
 from app.core.config import LANGSMITH_PROJECT, MAX_RETRIES, logger
-from app.schemas.rag import CRAGGraphState, ChatTurn
-from app.services.crag.graph import get_graph_app
+from app.schemas.rag import ChatTurn, HybridGraphState
+from app.services.hybrid_rag.graph import get_graph_app
 from app.services.tracing import add_trace, begin_trace, end_trace
-from app.utils.crag import make_inputs, result_to_payload as build_payload
+from app.utils.hybrid_rag import make_inputs, result_to_payload as build_payload
 
 
-# 사용자 질문과 대화 이력을 받아 CRAG corrective loop 전체를 실행한다.
-def run_crag(question: str, chat_history: list[ChatTurn]) -> CRAGGraphState:
+# 사용자 질문과 대화 이력을 받아 Hybrid-RAG 파이프라인 전체를 실행한다.
+def run_hybrid_rag(question: str, chat_history: list[ChatTurn]) -> HybridGraphState:
     trace_events, trace_token, started_token, started_at = begin_trace()
 
     try:
         logger.info(
-            "CRAG start | question=%r | history_turns=%d",
+            "Hybrid run start | question=%r | history_turns=%d",
             question,
             len(chat_history),
         )
-        add_trace("crag_run", "Start CRAG run", question=question, history_turns=len(chat_history))
+        add_trace("hybrid_run", "Start Hybrid-RAG run", question=question, history_turns=len(chat_history))
         invoke_config: RunnableConfig = {
-            "run_name": "crag_graph",
-            "tags": ["crag", LANGSMITH_PROJECT],
+            "run_name": "hybrid_rag_graph",
+            "tags": ["hybrid-rag", LANGSMITH_PROJECT],
             "metadata": {
                 "question": question,
                 "history_turns": len(chat_history),
@@ -32,18 +32,18 @@ def run_crag(question: str, chat_history: list[ChatTurn]) -> CRAGGraphState:
         result = get_graph_app().invoke(make_inputs(question, chat_history), config=invoke_config)
         elapsed_ms = int((time.perf_counter() - started_at) * 1000)
         logger.info(
-            "CRAG end   | question=%r | elapsed=%.2fs | retry_count=%d | correction_retry_count=%d",
+            "Hybrid run end | question=%r | elapsed=%.2fs | decision=%s | retry_count=%d",
             question,
             elapsed_ms / 1000,
+            result.get("reflection_decision", ""),
             result.get("retry_count", 0),
-            result.get("correction_retry_count", 0),
         )
         add_trace(
-            "crag_run",
-            "CRAG run completed",
+            "hybrid_run",
+            "Hybrid-RAG run completed",
             elapsed_ms=elapsed_ms,
+            decision=result.get("reflection_decision", ""),
             retry_count=result.get("retry_count", 0),
-            correction_retry_count=result.get("correction_retry_count", 0),
             evidence_count=result.get("evidence_count", 0),
         )
         result["trace"] = list(trace_events)
@@ -52,6 +52,6 @@ def run_crag(question: str, chat_history: list[ChatTurn]) -> CRAGGraphState:
         end_trace(trace_token, started_token)
 
 
-# CRAG 그래프 결과를 외부 응답용 payload로 변환한다.
-def result_to_payload(result: CRAGGraphState) -> dict:
+# 하이브리드 RAG 결과를 외부 응답용 payload로 변환한다.
+def result_to_payload(result: HybridGraphState) -> dict:
     return build_payload(result)

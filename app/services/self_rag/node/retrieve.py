@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 
 from app.prompt.self_rag.retrieval import EVALUATE_RETRIEVED_DOCUMENTS_PROMPT
-from app.schemas.chat import GraphState, RetrievalAssessmentResult
+from app.schemas.rag import GraphState, RetrievalAssessmentResult
 from app.services.self_rag.dependencies import get_llm, get_retriever
 from app.services.tracing import add_trace
 from app.utils.self_rag import format_chat_history, format_documents

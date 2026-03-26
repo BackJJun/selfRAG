@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 
-from app.api.routes import chat_router
+from app.api.routes import rag_router
 from app.core.config import FILE_PATH, MAX_RETRIES, logger
 
 
@@ -10,7 +10,7 @@ app = FastAPI(
     version="1.0.0",
     description="Stateless Self-RAG API for upstream services.",
 )
-app.include_router(chat_router)
+app.include_router(rag_router)
 
 
 @app.get("/health")

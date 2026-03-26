@@ -1,9 +1,18 @@
-from app.prompt.crag.correction import CRAG_CORRECTION_PROMPT
-from app.prompt.crag.reflection import CRAG_REFLECTION_PROMPT
-from app.prompt.crag.retrieval import CRAG_RETRIEVAL_PROMPT
+from app.prompt.crag.correction import (
+    CRAG_GENERATE_ANSWER_PROMPT,
+    CRAG_REGENERATE_ANSWER_PROMPT,
+    CRAG_REVISE_ANSWER_PROMPT,
+)
+from app.prompt.crag.refine import CRAG_REFINE_EVIDENCE_PROMPT
+from app.prompt.crag.reflection import CRAG_ANSWER_QUALITY_PROMPT, CRAG_FINAL_ANSWER_PROMPT
+from app.prompt.crag.retrieval import CRAG_RETRIEVAL_QUALITY_PROMPT
 
 __all__ = [
-    "CRAG_CORRECTION_PROMPT",
-    "CRAG_REFLECTION_PROMPT",
-    "CRAG_RETRIEVAL_PROMPT",
+    "CRAG_ANSWER_QUALITY_PROMPT",
+    "CRAG_FINAL_ANSWER_PROMPT",
+    "CRAG_GENERATE_ANSWER_PROMPT",
+    "CRAG_REGENERATE_ANSWER_PROMPT",
+    "CRAG_REFINE_EVIDENCE_PROMPT",
+    "CRAG_RETRIEVAL_QUALITY_PROMPT",
+    "CRAG_REVISE_ANSWER_PROMPT",
 ]

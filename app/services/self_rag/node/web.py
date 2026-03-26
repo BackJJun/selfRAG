@@ -3,7 +3,7 @@ from langchain_core.documents import Document
 from langchain_core.tools import tool
 
 from app.core.config import logger
-from app.schemas.chat import GraphState
+from app.schemas.rag import GraphState
 from app.services.tracing import add_trace
 
 

@@ -3,20 +3,14 @@ import time
 from langchain_core.runnables import RunnableConfig
 
 from app.core.config import LANGSMITH_PROJECT, MAX_RETRIES, logger
-from app.schemas.chat import ChatTurn, GraphState
+from app.schemas.rag import ChatTurn, GraphState
 from app.services.self_rag.graph import get_graph_app
 from app.services.tracing import add_trace, begin_trace, end_trace
 from app.utils.self_rag import make_inputs, result_to_payload
 
 
-# 사용자 질문과 이전 대화 기록을 바탕으로 Self-RAG 프로세스를 총괄 실행한다.
-# 1. 실행 과정을 기록하기 위한 트레이싱(Tracing)을 시작한다.
-# 2. 질문과 대화 기록을 그래프 입력 형식으로 변환한다.
-# 3. 컴파일된 LangGraph 앱을 호출하여 비즈니스 로직(검색-생성-반성)을 수행한다.
-# 4. 종료 후 수행 시간 및 상세 트레이스 정보를 포함한 최종 상태(GraphState)를 반환한다.
+# 사용자 질문과 대화 이력을 받아 Self-RAG 파이프라인 전체를 실행한다.
 def run_self_rag(question: str, chat_history: list[ChatTurn]) -> GraphState:
-    """사용자 질문에 대해 Self-RAG 알고리즘을 적용하여 최적의 답변을 생성합니다."""
-
     trace_events, trace_token, started_token, started_at = begin_trace()
 
     try:

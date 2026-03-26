@@ -2,13 +2,14 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from app.core.config import logger
 from app.prompt.self_rag.reflection import REFLECT_ON_ANSWER_PROMPT
-from app.schemas.chat import GraphState, ReflectionResult
+from app.schemas.rag import GraphState, HybridGraphState, ReflectionResult
 from app.services.self_rag.dependencies import get_llm
 from app.services.tracing import add_trace
-from app.utils.self_rag import format_chat_history, format_documents
+from app.utils.self_rag import format_chat_history, format_generation_context
 
 
-def reflect_on_answer(state: GraphState):
+# 생성된 답변이 충분히 근거 기반인지 평가하고 다음 액션에 필요한 신호를 만든다.
+def reflect_on_answer(state: GraphState | HybridGraphState):
     logger.info(
         "Node start | reflect_on_answer | current_query=%r | retry_count=%d",
         state["current_query"],
@@ -19,7 +20,8 @@ def reflect_on_answer(state: GraphState):
         "Evaluate draft answer",
         current_query=state["current_query"],
         retry_count=state["retry_count"],
-        retrieval_summary=state["retrieval_assessment_summary"],
+        retrieval_summary=state.get("retrieval_assessment_summary", state.get("retrieval_reason", "")),
+        evidence_count=state.get("evidence_count", 0),
     )
     prompt = ChatPromptTemplate.from_template(REFLECT_ON_ANSWER_PROMPT)
     structured_llm = get_llm().with_structured_output(ReflectionResult)
@@ -29,7 +31,7 @@ def reflect_on_answer(state: GraphState):
             "chat_history": format_chat_history(state["chat_history"]),
             "question": state["question"],
             "current_query": state["current_query"],
-            "context": format_documents(state["documents"]),
+            "context": format_generation_context(state),
             "generation": state["generation"],
         }
     )
