@@ -1,11 +1,10 @@
-from langchain_community.utilities import GoogleSerperAPIWrapper
+from typing import Any
+
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import tool
 
 from app.core.config import logger
-from app.prompt.common import REWRITE_QUERY_PROMPT
 from app.prompt.crag.correction import (
     CRAG_GENERATE_ANSWER_PROMPT,
     CRAG_REGENERATE_ANSWER_PROMPT,
@@ -13,12 +12,18 @@ from app.prompt.crag.correction import (
 )
 from app.schemas.rag import CRAGGraphState
 from app.services.shared.dependencies import get_llm
+from app.services.shared.query_rewrite import resolve_rewritten_query
+from app.services.shared.web_search import run_web_search
 from app.services.tracing import add_trace
-from app.utils.crag import format_chat_history, format_documents, format_refined_evidence
+from app.utils.crag import format_chat_history, format_refined_evidence
+
+_CRAG_GENERATE_TEMPLATE = ChatPromptTemplate.from_template(CRAG_GENERATE_ANSWER_PROMPT)
+_CRAG_REGENERATE_TEMPLATE = ChatPromptTemplate.from_template(CRAG_REGENERATE_ANSWER_PROMPT)
+_CRAG_REVISE_TEMPLATE = ChatPromptTemplate.from_template(CRAG_REVISE_ANSWER_PROMPT)
 
 
 # 정제된 evidence set을 바탕으로 1차 답변 초안을 생성한다.
-def generate_answer(state: CRAGGraphState):
+def generate_answer(state: CRAGGraphState) -> dict[str, Any]:
     logger.info(
         "CRAG node  | generate_answer | question=%r | evidence_count=%d",
         state["question"],
@@ -31,8 +36,7 @@ def generate_answer(state: CRAGGraphState):
         evidence_count=state["evidence_count"],
         refine_quality=state["refine_quality"],
     )
-    prompt = ChatPromptTemplate.from_template(CRAG_GENERATE_ANSWER_PROMPT)
-    chain = prompt | get_llm() | StrOutputParser()
+    chain = _CRAG_GENERATE_TEMPLATE | get_llm() | StrOutputParser()
     generation = chain.invoke(
         {
             "chat_history": format_chat_history(state["chat_history"]),
@@ -46,7 +50,7 @@ def generate_answer(state: CRAGGraphState):
 
 
 # 답변 평가 결과를 반영해 evidence 기준으로 초안을 다시 생성한다.
-def regenerate_answer(state: CRAGGraphState):
+def regenerate_answer(state: CRAGGraphState) -> dict[str, Any]:
     logger.info(
         "CRAG node  | regenerate_answer | question=%r | correction_retry_count=%d",
         state["question"],
@@ -59,8 +63,7 @@ def regenerate_answer(state: CRAGGraphState):
         unsupported_claims=state["answer_unsupported_claims"],
         correction_retry_count=state["correction_retry_count"],
     )
-    prompt = ChatPromptTemplate.from_template(CRAG_REGENERATE_ANSWER_PROMPT)
-    chain = prompt | get_llm() | StrOutputParser()
+    chain = _CRAG_REGENERATE_TEMPLATE | get_llm() | StrOutputParser()
     generation = chain.invoke(
         {
             "chat_history": format_chat_history(state["chat_history"]),
@@ -77,8 +80,8 @@ def regenerate_answer(state: CRAGGraphState):
     }
 
 
-# 로컬 검색을 한 번 더 시도할 가치가 있을 때 현재 질의를 더 구체적으로 재작성한다.
-def rewrite_query(state: CRAGGraphState):
+# 로컬 검색을 더 시도할 가치가 있을 때 현재 질의를 구체적으로 다시 작성한다.
+def rewrite_query(state: CRAGGraphState) -> dict[str, Any]:
     logger.info(
         "CRAG node  | rewrite_query | previous_query=%r | retry_count=%d",
         state["current_query"],
@@ -90,38 +93,20 @@ def rewrite_query(state: CRAGGraphState):
         previous_query=state["current_query"],
         retry_count=state["retry_count"],
     )
-    suggested_query = state["rewritten_query"].strip()
-    if suggested_query:
-        return {
-            "current_query": suggested_query,
-            "retry_count": state["retry_count"] + 1,
-        }
-
-    prompt = ChatPromptTemplate.from_template(REWRITE_QUERY_PROMPT)
-    chain = prompt | get_llm() | StrOutputParser()
-    better_query = chain.invoke(
-        {
-            "chat_history": format_chat_history(state["chat_history"]),
-            "question": state["question"],
-            "current_query": state["current_query"],
-        }
-    ).strip()
+    better_query = resolve_rewritten_query(
+        question=state["question"],
+        chat_history=state["chat_history"],
+        current_query=state["current_query"],
+        suggested_query=state["rewritten_query"],
+    )
     return {
         "current_query": better_query,
         "retry_count": state["retry_count"] + 1,
     }
 
 
-# 최신성 보강이 필요할 때 웹 검색 결과를 문자열로 반환한다.
-@tool
-def web_search(query: str) -> str:
-    """최신성 보강이 필요할 때 웹 검색 결과를 문자열로 반환한다."""
-    logger.warning("CRAG web search | query=%r", query)
-    return GoogleSerperAPIWrapper().run(query)
-
-
-# 외부 웹 검색을 실행하고 이후 검색 평가 단계가 다시 사용할 문서로 저장한다.
-def web_search_node(state: CRAGGraphState):
+# 외부 웹 검색을 수행하고 이후 검색 평가 단계가 다시 사용할 문서로 전환한다.
+def web_search_node(state: CRAGGraphState) -> dict[str, Any]:
     logger.warning(
         "CRAG node  | web_search_node | query=%r | retry_count=%d",
         state["current_query"],
@@ -133,7 +118,7 @@ def web_search_node(state: CRAGGraphState):
         query=state["current_query"],
         retry_count=state["retry_count"],
     )
-    search_result = web_search.invoke(state["current_query"])
+    search_result = run_web_search(state["current_query"])
     return {
         "documents": [
             Document(
@@ -145,8 +130,8 @@ def web_search_node(state: CRAGGraphState):
     }
 
 
-# 최종 승인 전에 위험한 문장을 제거하고 evidence 기준으로 답변을 보수화한다.
-def revise_answer(state: CRAGGraphState):
+# 최종 확인 전에 위험한 문장을 제거하고 evidence 기준으로 답변을 보수화한다.
+def revise_answer(state: CRAGGraphState) -> dict[str, Any]:
     logger.info(
         "CRAG node  | revise_answer | question=%r | final_revision_count=%d",
         state["question"],
@@ -159,8 +144,7 @@ def revise_answer(state: CRAGGraphState):
         missing_points=state["answer_missing_points"],
         final_revision_count=state["final_revision_count"],
     )
-    prompt = ChatPromptTemplate.from_template(CRAG_REVISE_ANSWER_PROMPT)
-    chain = prompt | get_llm() | StrOutputParser()
+    chain = _CRAG_REVISE_TEMPLATE | get_llm() | StrOutputParser()
     generation = chain.invoke(
         {
             "question": state["question"],

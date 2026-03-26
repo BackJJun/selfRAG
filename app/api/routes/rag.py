@@ -25,8 +25,9 @@ def normalize_question(question: str) -> str:
     return normalized
 
 
-# 파이프라인 실행 중 발생하는 예외를 종류별로 구분해 적절한 HTTP 에러로 변환한다.
-def _handle_pipeline_error(exc: Exception, pipeline: str) -> None:
+# 파이프라인 실행 중 발생하는 예외를 종류별로 구분해 적절한 HTTPException을 raise한다.
+# 반환값 없이 항상 raise하므로 호출부에서 raise를 다시 쓸 필요가 없다.
+def _raise_pipeline_error(exc: Exception, pipeline: str) -> None:
     if isinstance(exc, openai.RateLimitError):
         logger.warning("Pipeline error | pipeline=%s | type=rate_limit | %s", pipeline, exc)
         raise HTTPException(status_code=429, detail="OpenAI API rate limit exceeded. 잠시 후 다시 시도해주세요.")
@@ -46,13 +47,18 @@ def _handle_pipeline_error(exc: Exception, pipeline: str) -> None:
     raise HTTPException(status_code=500, detail="파이프라인 실행 중 예기치 않은 오류가 발생했습니다.")
 
 
+# 파이프라인 함수를 스레드 풀에서 실행하고 예외 발생 시 HTTP 에러로 변환한다.
+# result가 항상 바인딩됨을 보장하기 위해 except에서 직접 raise한다.
+async def _run_in_thread(fn, *args, pipeline: str):
+    try:
+        return await asyncio.to_thread(fn, *args)
+    except Exception as exc:
+        _raise_pipeline_error(exc, pipeline)
+
+
 # Hybrid-RAG를 스레드 풀에서 비동기로 실행하고 응답 모델로 변환한다.
 async def _build_hybrid_response(payload: SelfRAGRequest, question: str) -> HybridRAGResponse:
-    try:
-        result = await asyncio.to_thread(run_hybrid_rag, question, payload.chat_history)
-    except Exception as exc:
-        _handle_pipeline_error(exc, "hybrid_rag")
-
+    result = await _run_in_thread(run_hybrid_rag, question, payload.chat_history, pipeline="hybrid_rag")
     response_payload = hybrid_result_to_payload(result)
     if not payload.include_trace:
         response_payload["trace"] = []
@@ -80,11 +86,7 @@ async def run_rag_endpoint(payload: SelfRAGRequest) -> SelfRAGResponse | CRAGRes
         return await _build_hybrid_response(payload, question)
 
     if payload.pipeline == "crag":
-        try:
-            result = await asyncio.to_thread(run_crag, question, payload.chat_history)
-        except Exception as exc:
-            _handle_pipeline_error(exc, "crag")
-
+        result = await _run_in_thread(run_crag, question, payload.chat_history, pipeline="crag")
         response_payload = crag_result_to_payload(result)
         if not payload.include_trace:
             response_payload["trace"] = []
@@ -95,11 +97,7 @@ async def run_rag_endpoint(payload: SelfRAGRequest) -> SelfRAGResponse | CRAGRes
         }
         return CRAGResponse.model_validate(response_payload)
 
-    try:
-        result = await asyncio.to_thread(run_self_rag, question, payload.chat_history)
-    except Exception as exc:
-        _handle_pipeline_error(exc, "self_rag")
-
+    result = await _run_in_thread(run_self_rag, question, payload.chat_history, pipeline="self_rag")
     response_payload = self_rag_result_to_payload(result)
     if not payload.include_trace:
         response_payload["trace"] = []

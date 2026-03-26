@@ -1,3 +1,5 @@
+from typing import Any
+
 from langchain_core.prompts import ChatPromptTemplate
 
 from app.core.config import logger
@@ -7,9 +9,11 @@ from app.services.shared.dependencies import get_llm, get_retriever
 from app.services.tracing import add_trace
 from app.utils.crag import format_chat_history, format_documents
 
+_CRAG_RETRIEVAL_TEMPLATE = ChatPromptTemplate.from_template(CRAG_RETRIEVAL_QUALITY_PROMPT)
 
-# 현재 질의로 로컬 리트리버를 호출해 CRAG의 1차 검색 결과를 수집한다.
-def retrieve(state: CRAGGraphState):
+
+# 현재 질의로 로컬 retriever를 호출해 CRAG 1차 검색 결과를 수집한다.
+def retrieve(state: CRAGGraphState) -> dict[str, Any]:
     logger.info("CRAG node  | retrieve | current_query=%r", state["current_query"])
     add_trace("crag_retrieve", "CRAG retrieval started", query=state["current_query"])
     documents = get_retriever().invoke(state["current_query"])
@@ -22,8 +26,8 @@ def retrieve(state: CRAGGraphState):
     return {"documents": documents}
 
 
-# 검색 품질과 문서별 관련도를 함께 평가해 이후 corrective action의 기준 신호를 만든다.
-def assess_retrieval_quality(state: CRAGGraphState):
+# 검색 적합도와 문서별 관련도를 함께 평가해 corrective action 기준 신호를 만든다.
+def assess_retrieval_quality(state: CRAGGraphState) -> dict[str, Any]:
     logger.info(
         "CRAG node  | assess_retrieval_quality | question=%r | documents=%d",
         state["question"],
@@ -36,9 +40,8 @@ def assess_retrieval_quality(state: CRAGGraphState):
         document_count=len(state["documents"]),
         retry_count=state["retry_count"],
     )
-    prompt = ChatPromptTemplate.from_template(CRAG_RETRIEVAL_QUALITY_PROMPT)
     structured_llm = get_llm().with_structured_output(CRAGRetrievalAssessmentResult)
-    chain = prompt | structured_llm
+    chain = _CRAG_RETRIEVAL_TEMPLATE | structured_llm
     result = chain.invoke(
         {
             "chat_history": format_chat_history(state["chat_history"]),

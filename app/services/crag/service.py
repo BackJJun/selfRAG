@@ -1,55 +1,38 @@
-import time
+from typing import cast
 
-from langchain_core.runnables import RunnableConfig
-
-from app.core.config import LANGSMITH_PROJECT, MAX_RETRIES, logger
+from app.core.config import logger
 from app.schemas.rag import CRAGGraphState, ChatTurn
 from app.services.crag.graph import get_graph_app
-from app.services.tracing import add_trace, begin_trace, end_trace
+from app.services.shared.runner import run_pipeline
 from app.utils.crag import make_inputs, result_to_payload as build_payload
 
 
 # 사용자 질문과 대화 이력을 받아 CRAG corrective loop 전체를 실행한다.
 def run_crag(question: str, chat_history: list[ChatTurn]) -> CRAGGraphState:
-    trace_events, trace_token, started_token, started_at = begin_trace()
-
-    try:
-        logger.info(
-            "CRAG start | question=%r | history_turns=%d",
-            question,
-            len(chat_history),
-        )
-        add_trace("crag_run", "Start CRAG run", question=question, history_turns=len(chat_history))
-        invoke_config: RunnableConfig = {
-            "run_name": "crag_graph",
-            "tags": ["crag", LANGSMITH_PROJECT],
-            "metadata": {
-                "question": question,
-                "history_turns": len(chat_history),
-                "max_retries": MAX_RETRIES,
-            },
-        }
-        result = get_graph_app().invoke(make_inputs(question, chat_history), config=invoke_config)
-        elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-        logger.info(
+    result = run_pipeline(
+        pipeline_name="crag",
+        run_name="crag_graph",
+        trace_stage="crag_run",
+        start_message="Start CRAG run",
+        end_message="CRAG run completed",
+        get_graph_app=get_graph_app,
+        make_inputs=make_inputs,
+        question=question,
+        chat_history=chat_history,
+        end_details=lambda result: {
+            "retry_count": result.get("retry_count", 0),
+            "correction_retry_count": result.get("correction_retry_count", 0),
+            "evidence_count": result.get("evidence_count", 0),
+        },
+        log_summary=lambda result, elapsed_ms: logger.info(
             "CRAG end   | question=%r | elapsed=%.2fs | retry_count=%d | correction_retry_count=%d",
             question,
             elapsed_ms / 1000,
             result.get("retry_count", 0),
             result.get("correction_retry_count", 0),
-        )
-        add_trace(
-            "crag_run",
-            "CRAG run completed",
-            elapsed_ms=elapsed_ms,
-            retry_count=result.get("retry_count", 0),
-            correction_retry_count=result.get("correction_retry_count", 0),
-            evidence_count=result.get("evidence_count", 0),
-        )
-        result["trace"] = list(trace_events)
-        return result
-    finally:
-        end_trace(trace_token, started_token)
+        ),
+    )
+    return cast(CRAGGraphState, result)
 
 
 # CRAG 그래프 결과를 외부 응답용 payload로 변환한다.

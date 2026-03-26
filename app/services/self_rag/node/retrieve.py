@@ -1,14 +1,19 @@
+from typing import Any
+
 from langchain_core.prompts import ChatPromptTemplate
 
+from app.core.config import logger
 from app.prompt.self_rag.retrieval import EVALUATE_RETRIEVED_DOCUMENTS_PROMPT
 from app.schemas.rag import GraphState, RetrievalAssessmentResult
 from app.services.shared.dependencies import get_llm, get_retriever
 from app.services.tracing import add_trace
 from app.utils.self_rag import format_chat_history, format_documents
-from app.core.config import logger
+
+_RETRIEVAL_EVAL_TEMPLATE = ChatPromptTemplate.from_template(EVALUATE_RETRIEVED_DOCUMENTS_PROMPT)
 
 
-def retrieve(state: GraphState):
+# 현재 질의로 로컬 retriever를 호출해 후보 문서를 수집한다.
+def retrieve(state: GraphState) -> dict[str, Any]:
     logger.info("Node start | retrieve | current_query=%r", state["current_query"])
     add_trace("retrieve", "Start retrieval", query=state["current_query"])
     documents = get_retriever().invoke(state["current_query"])
@@ -22,7 +27,8 @@ def retrieve(state: GraphState):
     return {"documents": documents}
 
 
-def evaluate_retrieved_documents(state: GraphState):
+# 검색된 문서를 문서별로 평가해 사용할 문서와 버릴 문서를 분리한다.
+def evaluate_retrieved_documents(state: GraphState) -> dict[str, Any]:
     logger.info(
         "Node start | evaluate_retrieved_documents | question=%r | documents=%d",
         state["question"],
@@ -34,9 +40,8 @@ def evaluate_retrieved_documents(state: GraphState):
         question=state["question"],
         document_count=len(state["documents"]),
     )
-    prompt = ChatPromptTemplate.from_template(EVALUATE_RETRIEVED_DOCUMENTS_PROMPT)
     structured_llm = get_llm().with_structured_output(RetrievalAssessmentResult)
-    chain = prompt | structured_llm
+    chain = _RETRIEVAL_EVAL_TEMPLATE | structured_llm
     result = chain.invoke(
         {
             "chat_history": format_chat_history(state["chat_history"]),

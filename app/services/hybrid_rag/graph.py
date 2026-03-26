@@ -4,20 +4,20 @@ from langgraph.graph import END, StateGraph
 
 from app.core.config import MAX_RETRIES, logger
 from app.schemas.rag import HybridGraphState
-from app.services.shared.dependencies import get_graph_lock, get_llm, get_retriever
 from app.services.crag.node.correction import rewrite_query, web_search_node
 from app.services.crag.node.refine import refine_evidence
 from app.services.crag.node.retrieve import assess_retrieval_quality, retrieve
 from app.services.self_rag.node.generation import generate_answer
 from app.services.self_rag.node.reflection import reflect_on_answer
 from app.services.self_rag.node.revision import revise_answer
+from app.services.shared.dependencies import get_graph_lock, get_llm, get_retriever
 from app.services.tracing import add_trace
 
 _graph_app: Any | None = None
 
 
-# 검색 품질 평가 결과를 바탕으로 다음 retrieval 단계를 결정한다.
-def route_after_retrieval_assessment(state: HybridGraphState):
+# 검색 결과 평가를 바탕으로 다음 retrieval 단계를 결정한다.
+def route_after_retrieval_assessment(state: HybridGraphState) -> str:
     if state["retrieval_quality"] in {"high", "medium"} and state["documents"]:
         add_trace("hybrid_route", "Proceed to evidence refinement", next_step="refine_evidence")
         return "refine_evidence"
@@ -39,7 +39,7 @@ def route_after_retrieval_assessment(state: HybridGraphState):
 
 
 # Self-RAG reflection 결과를 바탕으로 retrieval corrective action 또는 답변 보수화를 선택한다.
-def route_after_reflection(state: HybridGraphState):
+def route_after_reflection(state: HybridGraphState) -> str:
     if state["reflection_decision"] == "answer":
         add_trace("hybrid_route", "Finish with current answer", next_step="end")
         return "end"
@@ -68,7 +68,7 @@ def route_after_reflection(state: HybridGraphState):
 
 
 # 하이브리드 RAG 그래프를 조립해 CRAG 검색 단계와 Self-RAG 답변 단계를 연결한다.
-def build_graph_app():
+def build_graph_app() -> Any:
     logger.info("[Init] Compile Hybrid-RAG graph")
     add_trace("hybrid_init", "Compile Hybrid-RAG graph")
     workflow = StateGraph(HybridGraphState)
@@ -115,7 +115,7 @@ def build_graph_app():
 
 
 # 하이브리드 그래프 싱글톤을 반환하고 없으면 한 번만 생성한다.
-def get_graph_app():
+def get_graph_app() -> Any:
     global _graph_app
     if _graph_app is None:
         with get_graph_lock():
@@ -124,7 +124,7 @@ def get_graph_app():
     return _graph_app
 
 
-# 첫 요청 전에 하이브리드 RAG가 공용 의존성과 그래프를 미리 준비하도록 워밍업한다.
+# 첫 요청 전에 하이브리드 RAG가 공용 의존성과 그래프를 미리 준비하도록 예열한다.
 def warmup_graph_dependencies() -> None:
     with get_graph_lock():
         get_llm()

@@ -1,10 +1,10 @@
-from app.core.config import MAX_RETRIES, logger
+from app.core.config import MAX_CORRECTION_RETRIES, MAX_RETRIES, logger
 from app.schemas.rag import CRAGGraphState
 from app.services.tracing import add_trace
 
 
-# 검색 품질 평가 결과를 바탕으로 refine, 재검색, 웹검색 중 다음 단계를 선택한다.
-def route_after_retrieval_assessment(state: CRAGGraphState):
+# 검색 결과 평가를 바탕으로 refine, 재검색, 웹검색 중 다음 단계를 선택한다.
+def route_after_retrieval_assessment(state: CRAGGraphState) -> str:
     logger.info(
         "CRAG route | after_retrieval | quality=%s | score=%d | issue=%s | retry_count=%d | web_search_used=%s",
         state["retrieval_quality"],
@@ -34,7 +34,7 @@ def route_after_retrieval_assessment(state: CRAGGraphState):
 
 
 # 답변 평가 결과를 corrective action으로 변환해 CRAG 루프를 진행한다.
-def route_after_answer_assessment(state: CRAGGraphState):
+def route_after_answer_assessment(state: CRAGGraphState) -> str:
     logger.info(
         "CRAG route | after_answer | next_action=%s | retry_count=%d | correction_retry_count=%d | web_search_used=%s",
         state["answer_next_action"],
@@ -49,7 +49,7 @@ def route_after_answer_assessment(state: CRAGGraphState):
         return "assess_final_answer"
 
     if action == "regenerate":
-        if state["correction_retry_count"] < 1:
+        if state["correction_retry_count"] < MAX_CORRECTION_RETRIES:
             add_trace("crag_route", "Regenerate answer from refined evidence", next_step="regenerate_answer")
             return "regenerate_answer"
         add_trace("crag_route", "Too many regenerate attempts, revise instead", next_step="revise_answer")
@@ -76,8 +76,8 @@ def route_after_answer_assessment(state: CRAGGraphState):
     return "revise_answer"
 
 
-# 최종 승인 결과에 따라 종료하거나 마지막 보수화 단계를 한 번 더 수행한다.
-def route_after_final_assessment(state: CRAGGraphState):
+# 최종 확인 결과에 따라 종료하거나 마지막 보수화 단계를 한 번 더 수행한다.
+def route_after_final_assessment(state: CRAGGraphState) -> str:
     logger.info(
         "CRAG route | after_final | approved=%s | action=%s | final_revision_count=%d",
         state["final_answer_approved"],

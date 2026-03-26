@@ -3,7 +3,6 @@ from app.services.crag.node.correction import (
     regenerate_answer,
     revise_answer,
     rewrite_query,
-    web_search,
     web_search_node,
 )
 from app.services.crag.node.refine import refine_evidence
@@ -28,6 +27,5 @@ __all__ = [
     "route_after_answer_assessment",
     "route_after_final_assessment",
     "route_after_retrieval_assessment",
-    "web_search",
     "web_search_node",
 ]

@@ -47,6 +47,7 @@ CHUNK_SIZE = int(os.getenv("SELF_RAG_CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("SELF_RAG_CHUNK_OVERLAP", "100"))
 TOP_K = int(os.getenv("SELF_RAG_TOP_K", "3"))
 MAX_RETRIES = int(os.getenv("SELF_RAG_MAX_RETRIES", "2"))
+MAX_CORRECTION_RETRIES = int(os.getenv("SELF_RAG_MAX_CORRECTION_RETRIES", "1"))
 STREAM_CHUNK_SIZE = int(os.getenv("SELF_RAG_STREAM_CHUNK_SIZE", "18"))
 
 logger.info(
