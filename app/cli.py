@@ -3,7 +3,7 @@ import asyncio
 
 from app.core.config import logger
 from app.schemas.chat import ChatTurn
-from app.services.graph_service import run_self_rag
+from app.services.self_rag import run_self_rag
 
 
 async def cli_main() -> None:

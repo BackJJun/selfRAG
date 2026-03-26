@@ -2,7 +2,7 @@
 
 from app.core.config import logger
 from app.schemas.chat import SelfRAGRequest, SelfRAGResponse
-from app.services.graph_service import result_to_payload, run_self_rag
+from app.services.self_rag import result_to_payload, run_self_rag
 
 
 router = APIRouter(prefix="/api/v1", tags=["self-rag"])

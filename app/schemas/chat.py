@@ -1,4 +1,4 @@
-﻿from typing import Any, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
@@ -19,18 +19,43 @@ class GraphState(TypedDict):
     rewritten_query: str
     retry_count: int
     web_search_used: bool
+    reflection_grounded: bool
+    reflection_complete: bool
+    reflection_relevant: bool
+    reflection_fresh: bool
+    reflection_issue_source: str
+    reflection_rationale: str
 
 
 class ReflectionResult(BaseModel):
     decision: Literal["answer", "retrieve_more"] = Field(
         description="Return answer if grounded enough, otherwise retrieve_more."
     )
-    rationale: str = Field(
-        description="Why the current answer is sufficiently supported or not."
-    )
+    grounded: bool = Field(description="Whether the draft answer is supported by the retrieved context.")
+    complete: bool = Field(description="Whether the draft answer sufficiently covers the user's request.")
+    relevant: bool = Field(description="Whether the draft answer is relevant to the user's request.")
+    fresh: bool = Field(description="Whether the current evidence appears fresh enough for the user's request.")
+    issue_source: Literal[
+        "none",
+        "query_problem",
+        "retrieval_problem",
+        "freshness_problem",
+        "answer_problem",
+        "mixed",
+    ] = Field(description="Primary reason the draft is weak, if any.")
+    rationale: str = Field(description="Why the current answer is sufficiently supported or not.")
     rewritten_query: str = Field(
         description="Better retrieval query for the next pass. Empty if not needed."
     )
+
+
+class ReflectionAssessment(BaseModel):
+    grounded: bool
+    complete: bool
+    relevant: bool
+    fresh: bool
+    issue_source: str
+    rationale: str
 
 
 class SelfRAGRequest(BaseModel):
@@ -62,6 +87,7 @@ class SelfRAGResponse(BaseModel):
     current_query: str
     retry_count: int
     reflection_decision: str
+    reflection: ReflectionAssessment | None = None
     documents: list[RetrievedDocument]
     trace: list[TraceEvent] = Field(default_factory=list)
     meta: dict[str, Any] = Field(default_factory=dict)
