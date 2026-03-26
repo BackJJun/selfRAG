@@ -1,0 +1,67 @@
+﻿from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+from typing_extensions import TypedDict
+
+
+class ChatTurn(TypedDict):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class GraphState(TypedDict):
+    question: str
+    current_query: str
+    chat_history: list[ChatTurn]
+    documents: list
+    generation: str
+    reflection_decision: str
+    rewritten_query: str
+    retry_count: int
+    web_search_used: bool
+
+
+class ReflectionResult(BaseModel):
+    decision: Literal["answer", "retrieve_more"] = Field(
+        description="Return answer if grounded enough, otherwise retrieve_more."
+    )
+    rationale: str = Field(
+        description="Why the current answer is sufficiently supported or not."
+    )
+    rewritten_query: str = Field(
+        description="Better retrieval query for the next pass. Empty if not needed."
+    )
+
+
+class SelfRAGRequest(BaseModel):
+    question: str = Field(min_length=1, description="User question to answer.")
+    chat_history: list[ChatTurn] = Field(
+        default_factory=list,
+        description="Prior conversation turns supplied by the caller.",
+    )
+    include_trace: bool = Field(
+        default=True,
+        description="Whether to include structured execution trace in the response.",
+    )
+
+
+class RetrievedDocument(BaseModel):
+    source: str
+    content: str
+
+
+class TraceEvent(BaseModel):
+    stage: str
+    message: str
+    elapsed_ms: int
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class SelfRAGResponse(BaseModel):
+    answer: str
+    current_query: str
+    retry_count: int
+    reflection_decision: str
+    documents: list[RetrievedDocument]
+    trace: list[TraceEvent] = Field(default_factory=list)
+    meta: dict[str, Any] = Field(default_factory=dict)
