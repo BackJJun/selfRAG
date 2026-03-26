@@ -41,6 +41,10 @@ def make_inputs(question: str, chat_history: list[ChatTurn]) -> GraphState:
         "reflection_fresh": True,
         "reflection_issue_source": "none",
         "reflection_rationale": "",
+        "retrieval_assessment_summary": "",
+        "retrieval_used_doc_indexes": [],
+        "retrieval_discarded_doc_indexes": [],
+        "retrieval_document_assessments": [],
     }
 
 
@@ -64,6 +68,12 @@ def result_to_payload(result: GraphState) -> dict:
             "fresh": result.get("reflection_fresh", True),
             "issue_source": result.get("reflection_issue_source", "none"),
             "rationale": result.get("reflection_rationale", ""),
+        },
+        "retrieval": {
+            "summary": result.get("retrieval_assessment_summary", ""),
+            "used_doc_indexes": result.get("retrieval_used_doc_indexes", []),
+            "discarded_doc_indexes": result.get("retrieval_discarded_doc_indexes", []),
+            "documents": result.get("retrieval_document_assessments", []),
         },
         "documents": documents,
         "trace": result.get("trace", []),

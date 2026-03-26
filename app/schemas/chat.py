@@ -25,6 +25,10 @@ class GraphState(TypedDict):
     reflection_fresh: bool
     reflection_issue_source: str
     reflection_rationale: str
+    retrieval_assessment_summary: str
+    retrieval_used_doc_indexes: list[int]
+    retrieval_discarded_doc_indexes: list[int]
+    retrieval_document_assessments: list[dict[str, Any]]
 
 
 class ReflectionResult(BaseModel):
@@ -49,6 +53,19 @@ class ReflectionResult(BaseModel):
     )
 
 
+class RetrievedDocumentAssessment(BaseModel):
+    doc_index: int = Field(description="1-based document index in the retrieved context.")
+    source: str = Field(description="Document source identifier.")
+    relevance_score: int = Field(ge=0, le=5, description="Coarse relevance score from 0 to 5.")
+    use: bool = Field(description="Whether this document should be kept for answer generation.")
+    rationale: str = Field(description="Short reason in Korean.")
+
+
+class RetrievalAssessmentResult(BaseModel):
+    summary: str = Field(description="Overall retrieval quality summary in Korean.")
+    documents: list[RetrievedDocumentAssessment] = Field(default_factory=list)
+
+
 class ReflectionAssessment(BaseModel):
     grounded: bool
     complete: bool
@@ -56,6 +73,13 @@ class ReflectionAssessment(BaseModel):
     fresh: bool
     issue_source: str
     rationale: str
+
+
+class RetrievalAssessment(BaseModel):
+    summary: str
+    used_doc_indexes: list[int] = Field(default_factory=list)
+    discarded_doc_indexes: list[int] = Field(default_factory=list)
+    documents: list[RetrievedDocumentAssessment] = Field(default_factory=list)
 
 
 class SelfRAGRequest(BaseModel):
@@ -88,6 +112,7 @@ class SelfRAGResponse(BaseModel):
     retry_count: int
     reflection_decision: str
     reflection: ReflectionAssessment | None = None
+    retrieval: RetrievalAssessment | None = None
     documents: list[RetrievedDocument]
     trace: list[TraceEvent] = Field(default_factory=list)
     meta: dict[str, Any] = Field(default_factory=dict)

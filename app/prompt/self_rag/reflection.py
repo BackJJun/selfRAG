@@ -1,23 +1,3 @@
-GENERATE_ANSWER_PROMPT = """
-You are answering the user's question using retrieved evidence.
-
-Rules:
-- Use the retrieved context first.
-- Consider the recent chat history for follow-up questions.
-- If evidence is incomplete, say what is uncertain.
-- Do not invent unsupported facts.
-- Write the answer in Korean.
-
-Recent chat history:
-{chat_history}
-
-Question:
-{question}
-
-Context:
-{context}
-"""
-
 REFLECT_ON_ANSWER_PROMPT = """
 You are a self-reflection module for a retrieval-augmented assistant.
 
@@ -54,6 +34,7 @@ Guidance for issue_source:
 
 Rules:
 - If the user asks about recent or changing information, mark fresh carefully.
+- Penalize missing or weak evidence tags when judging groundedness.
 - If the current context is not enough to answer confidently, do not pretend it is enough.
 - If decision is "retrieve_more", rewritten_query should be specific and actionable.
 - Write rationale in Korean.
@@ -72,30 +53,4 @@ Retrieved context:
 
 Draft answer:
 {generation}
-"""
-
-REVISE_ANSWER_PROMPT = """
-You are rewriting the final answer after retrieval attempts are exhausted.
-
-Goal:
-- Produce the safest and most useful final answer in Korean.
-- Use only information supported by the retrieved context.
-- Remove speculative or weakly supported claims from the previous draft.
-- Keep helpful details that are grounded in the context.
-- Explicitly mention uncertainty or missing evidence when needed.
-- Do not ask for another retrieval step.
-
-Recent chat history:
-{chat_history}
-
-Question:
-{question}
-
-Retrieved context:
-{context}
-
-Previous draft answer:
-{generation}
-
-Write the revised final answer only.
 """

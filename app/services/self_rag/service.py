@@ -5,8 +5,8 @@ from langchain_core.runnables import RunnableConfig
 from app.core.config import LANGSMITH_PROJECT, MAX_RETRIES, logger
 from app.schemas.chat import ChatTurn, GraphState
 from app.services.self_rag.graph import get_graph_app
-from app.services.self_rag.tracing import add_trace, begin_trace, end_trace
-from app.services.self_rag.utils import make_inputs, result_to_payload
+from app.services.tracing import add_trace, begin_trace, end_trace
+from app.utils.self_rag import make_inputs, result_to_payload
 
 
 # 사용자 질문과 이전 대화 기록을 바탕으로 Self-RAG 프로세스를 총괄 실행한다.

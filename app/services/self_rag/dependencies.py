@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 
 from app.core.config import OPENAI_LLM_MODEL, logger
 from app.services.retriever import LocalVectorRetriever, build_retriever
-from app.services.self_rag.tracing import add_trace
+from app.services.tracing import add_trace
 
 _graph_lock = threading.Lock()
 _retriever: LocalVectorRetriever | None = None
